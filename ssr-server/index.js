@@ -1,5 +1,7 @@
 const express = require('express')
 const passport = require('passport')
+const session = require('express-session')
+const helmet = require('helmet')
 const boom = require('@hapi/boom')
 const cookieParser = require('cookie-parser')
 const axios = require('axios')
@@ -10,12 +12,32 @@ const app = express();
 //body parser
 app.use(express.json());
 app.use(cookieParser())
+app.use(helmet())
+app.use(session({
+        secret: config.sessionSecret,
+        resave: true,
+        saveUninitialized: true
+    }))
+app.use(passport.initialize())
+app.use(passport.session())
 
 // basic strategy
 require("./utils/auth/strategies/basic")
 
 // OAuth strategy
 require("./utils/auth/strategies/oauth")
+
+// Google strategy
+require("./utils/auth/strategies/google")
+
+// Twitter strategy
+require("./utils/auth/strategies/twitter")
+
+// Linkedin strategy
+require("./utils/auth/strategies/linkedin")
+
+// Facebook strategy
+require("./utils/auth/strategies/facebook")
 
 const THIRTY_DAYS_IN_MILISEC = 2_592_000_000;
 const TWO_HOURS_IN_MILISEC = 7_200_000;
@@ -125,6 +147,83 @@ function(req, res, next){
 
     res.status(200).json(user)
 })
+
+app.get("/auth/google", passport.authenticate("google", {
+    scope:["email", "profile", "openid"]
+}))
+
+app.get("/auth/google/callback", passport.authenticate("google", {session: false}),
+function(req, res, next){
+    if(!req.user){
+        next(boom.unauthorized())
+    }
+
+    const {token, ...user} = req.user
+
+    res.cookie("token", token, {
+        httpOnly: !config.dev,
+        secure: !config.dev
+    })
+
+    res.status(200).json(user)
+})
+
+app.get("/auth/twitter", passport.authenticate("twitter"))
+
+app.get("/auth/twitter/callback", passport.authenticate("twitter", {session:false},), function(req, res, next){
+    if(!req.user){
+        next(boom.unauthorized())
+    }
+
+    const {token, ...user} = req.user
+
+    res.cookie("token", token, {
+        httpOnly:!config.dev,
+        secure: !config.dev
+    })
+
+    res.status(200).json(user)
+})
+
+app.get('/auth/linkedin', passport.authenticate('linkedin'))
+
+app.get('/auth/linkedin/callback', passport.authenticate('linkedin', {session: false}), function (req, res, next){
+    if(!req.user){
+        next(boom.unauthorized())
+    }
+
+    const {token, ...user} = req.user
+
+    res.cookie("token", token, {
+        httpOnly: !config.dev,
+        secure: !config.dev
+    })
+
+    res.status(200).json(user)
+})
+
+app.get("/auth/facebook", passport.authenticate("facebook", {
+    scope:["email"]
+}))
+
+app.get("/auth/facebook/callback", 
+passport.authenticate("facebook", {session:false}),
+
+function(req, res, next){
+    if(!req.user){
+        next(boom.unauthorized())
+    }
+
+    const {token, ...user} = req.user
+
+    res.cookie("token", token, {
+        httpOnly:!config.dev,
+        secure: !config.dev
+    })
+
+    res.status(200).json(user)
+})
+
 app.listen(config.port, function(){
     console.log(`Listening at http://localhost:${config.port}`)
 })

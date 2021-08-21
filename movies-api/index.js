@@ -1,4 +1,5 @@
 const express = require('express');
+const helmet = require('helmet')
 const cors = require('cors');
 // const slash = require('slash')
 const app = express();
@@ -16,7 +17,7 @@ app.use(cors())
 app.enable('strict routing')
 // middleware body parser
 app.use(express.json());
-
+app.use(helmet())
 //Routes
 authApi(app)
 moviesApi(app);
